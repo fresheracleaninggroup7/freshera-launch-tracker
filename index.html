@@ -343,6 +343,10 @@
       line-height: 1.35;
     }
 
+    .q-detail-value strong {
+      font-weight: 800;
+    }
+
     .doc-button {
       display: inline-flex;
       align-items: center;
@@ -642,13 +646,50 @@
       return "";
     }
 
+    function escapeRegExp(value) {
+      return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function phoneHref(value) {
+      const digits = String(value).replace(/[^\d+]/g, "");
+      const plainDigits = digits.replace(/\D/g, "");
+      if (plainDigits.length < 8) return "";
+      return "tel:" + digits;
+    }
+
+    function formatDetailValue(value) {
+      const text = String(value || "");
+      const tokens = [];
+      const tokenPattern = /(https?:\/\/[^\s<>()]+|(?:\+?\d[\d\s().-]{7,}\d))/g;
+      let cursor = 0;
+      let match;
+      while ((match = tokenPattern.exec(text))) {
+        if (match.index > cursor) tokens.push({ type: "text", value: text.slice(cursor, match.index) });
+        const raw = match[0].replace(/[.,;:!?]+$/, "");
+        const trailing = match[0].slice(raw.length);
+        const url = safeUrl(raw);
+        tokens.push(url ? { type: "url", value: raw, href: url } : { type: "phone", value: raw, href: phoneHref(raw) });
+        if (trailing) tokens.push({ type: "text", value: trailing });
+        cursor = match.index + match[0].length;
+      }
+      if (cursor < text.length) tokens.push({ type: "text", value: text.slice(cursor) });
+
+      return tokens.map(token => {
+        if (token.type === "url") {
+          return `<a href="${token.href}" target="_blank" rel="noopener">${escapeHtml(token.value)}</a>`;
+        }
+        if (token.type === "phone" && token.href) {
+          return `<a href="${token.href}">${escapeHtml(token.value)}</a>`;
+        }
+        const escaped = escapeHtml(token.value);
+        return escaped.replace(/\*\*([^*]+)\*\*/g, (_match, boldText) => `<strong>${boldText}</strong>`);
+      }).join("").replace(/\r?\n/g, "<br>");
+    }
+
     function renderExtraDetails(details) {
       if (!details || !details.length) return "";
       const detailHtml = details.map(detail => {
-        const url = safeUrl(detail.value);
-        const valueHtml = url
-          ? `<a href="${url}" target="_blank" rel="noopener">${escapeHtml(detail.value)}</a>`
-          : escapeHtml(detail.value);
+        const valueHtml = formatDetailValue(detail.value);
         return `
           <span class="q-detail">
             <span class="q-detail-label">${escapeHtml(detail.label)}</span>
