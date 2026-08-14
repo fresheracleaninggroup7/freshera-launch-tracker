@@ -976,6 +976,13 @@
       return normalize(name) || String(name || "");
     }
 
+    function isSectionCollapsed(key) {
+      if (Object.prototype.hasOwnProperty.call(collapsedSections, key)) {
+        return Boolean(collapsedSections[key]);
+      }
+      return true;
+    }
+
     function makeId(section, task, index) {
       const base = normalize(section + "-" + task).slice(0, 80);
       return base || "task-" + index;
@@ -1445,7 +1452,7 @@
 
         const sectionEl = document.createElement("section");
         const key = sectionKey(group.name);
-        const collapsed = Boolean(collapsedSections[key]);
+        const collapsed = isSectionCollapsed(key);
         sectionEl.className = "section" + (done === total ? " done" : "");
         sectionEl.classList.toggle("collapsed", collapsed);
         if (visibleTasks.length === 0) sectionEl.classList.add("hidden");
@@ -1501,11 +1508,7 @@
         });
 
         sectionEl.querySelector("[data-section-toggle]").addEventListener("click", () => {
-          if (collapsedSections[key]) {
-            delete collapsedSections[key];
-          } else {
-            collapsedSections[key] = true;
-          }
+          collapsedSections[key] = !isSectionCollapsed(key);
           saveCollapsedSections();
           render();
         });
