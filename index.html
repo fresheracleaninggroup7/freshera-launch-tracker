@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Freshera Cleaners - Launch Progress Form</title>
+  <style>
+    :root {
+      --page: #eef4ef;
+      --card: #ffffff;
+      --ink: #202124;
+      --muted: #5f6f64;
+      --line: #d8e2da;
+      --soft-line: #edf1ee;
+      --green: #16834a;
+      --green-dark: #0f6638;
+      --green-soft: #e5f6eb;
+      --amber: #9a5a00;
+      --amber-soft: #fff5dc;
+      --blue: #1a73e8;
+      --danger: #b3261e;
+      --shadow: 0 2px 8px rgba(60, 64, 67, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Roboto, Inter, Arial, sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    a {
+      color: var(--blue);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .wrap {
+      width: min(860px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .form-title,
+    .panel,
+    .section,
+    .notice {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .form-title {
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .top-line {
+      height: 10px;
+      background: var(--green);
+    }
+
+    .title-body {
+      padding: 28px 30px 24px;
+    }
+
+    .tag {
+      margin: 0 0 10px;
+      color: var(--green-dark);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .description {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 18px 20px;
+    }
+
+    .progress-text {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .progress-track {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #edf1ee;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: var(--green);
+      transition: width 180ms ease;
+    }
+
+    .percent {
+      min-width: 86px;
+      text-align: right;
+      color: var(--green);
+      font-size: 32px;
+      font-weight: 800;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 14px;
+    }
+
+    .button {
+      min-height: 40px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .button:hover,
+    .button.active {
+      border-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green-dark);
+    }
+
+    .button.primary {
+      border-color: var(--green);
+      background: var(--green);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .button.danger:hover {
+      border-color: var(--danger);
+      background: #fceeee;
+      color: var(--danger);
+    }
+
+    .notice {
+      display: none;
+      margin-bottom: 12px;
+      padding: 12px 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .notice.show {
+      display: block;
+    }
+
+    .section {
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .section-head {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .section-note {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .section-count {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--amber-soft);
+      color: var(--amber);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .section.done .section-count {
+      background: var(--green-soft);
+      color: var(--green-dark);
+    }
+
+    .question {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--soft-line);
+      background: #fff;
+    }
+
+    .question:last-child {
+      border-bottom: 0;
+    }
+
+    .question.complete {
+      background: var(--green-soft);
+    }
+
+    .box {
+      position: relative;
+      width: 24px;
+      height: 24px;
+      margin-top: 2px;
+      border: 2px solid #9aa9a0;
+      border-radius: 4px;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .box input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .box.readonly,
+    .box.readonly input {
+      cursor: default;
+    }
+
+    .tick {
+      display: none;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .question.complete .box {
+      border-color: var(--green);
+      background: var(--green);
+    }
+
+    .question.complete .tick {
+      display: block;
+    }
+
+    .q-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .q-note {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .doc-link,
+    .doc-missing {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      margin-top: 9px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .doc-link {
+      background: #e8f0fe;
+      color: var(--blue);
+    }
+
+    .doc-missing {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .status {
+      min-width: 82px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: #f1f3f2;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .question.complete .status {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      padding: 11px 15px;
+      border-radius: 8px;
+      background: #202124;
+      color: #fff;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, bottom 160ms ease;
+    }
+
+    .toast.show {
+      bottom: 28px;
+      opacity: 1;
+    }
+
+    @media (max-width: 680px) {
+      .wrap {
+        width: min(100% - 18px, 860px);
+        padding-top: 12px;
+      }
+
+      .title-body {
+        padding: 22px 20px;
+      }
+
+      h1 {
+        font-size: 27px;
+      }
+
+      .panel {
+        grid-template-columns: 1fr;
+      }
+
+      .percent {
+        text-align: left;
+      }
+
+      .question {
+        grid-template-columns: 32px minmax(0, 1fr);
+      }
+
+      .status {
+        grid-column: 2;
+        width: fit-content;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="form-title">
+      <div class="top-line"></div>
+      <div class="title-body">
+        <p class="tag">Freshera Cleaners internal tracker</p>
+        <h1>Launch progress checklist</h1>
+        <p class="description">Share this page with staff to show what is complete and what is still pending. Green tick means complete, and every item is grouped by section.</p>
+      </div>
+    </div>
+
+    <div class="panel" aria-live="polite">
+      <div>
+        <p class="progress-text" id="progressCount">Loading progress...</p>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </div>
+      <div class="percent" id="progressText">0%</div>
+    </div>
+
+    <div class="actions" aria-label="Checklist controls">
+      <button class="button active" data-filter="all" type="button">All</button>
+      <button class="button" data-filter="pending" type="button">Pending</button>
+      <button class="button" data-filter="complete" type="button">Complete</button>
+      <button class="button primary" id="copyLink" type="button">Copy status link</button>
+      <button class="button" id="refreshData" type="button">Refresh</button>
+      <button class="button danger" id="resetAll" type="button">Reset</button>
+    </div>
+
+    <div class="notice" id="notice"></div>
+    <div id="sections"></div>
+  </main>
+
+  <div class="toast" id="toast">Copied</div>
+
+  <script>
+    const FALLBACK_ROWS = [
+      ["Business foundation", "Company profile / statement", "Short company profile for vendor panel use.", "Pending", ""],
+      ["Business foundation", "ABN / ACN evidence", "Attach official business registration proof.", "Pending", ""],
+      ["Business foundation", "Business name confirmation", "Confirm the official Freshera Cleaners business name.", "Pending", ""],
+      ["Business foundation", "Public liability certificate", "Collect the current certificate of currency.", "Pending", ""],
+      ["Business foundation", "Workers compensation decision", "Confirm whether workers compensation insurance is required.", "Pending", ""],
+      ["Compliance documents", "WHS policy", "Work health and safety rules and responsibilities.", "Pending", ""],
+      ["Compliance documents", "Environmental policy", "Waste, water, chemical use, and environmental commitment.", "Pending", ""],
+      ["Compliance documents", "Quality policy", "Quality control standards and review process.", "Pending", ""],
+      ["Compliance documents", "Chemical handling procedure", "SDS, PPE, storage, dilution, and spill response process.", "Pending", ""],
+      ["Compliance documents", "Safety data sheet register", "SDS links or files for every chemical used.", "Pending", ""],
+      ["Compliance documents", "Safe work method statement", "Site-specific SWMS where required.", "Pending", ""],
+      ["Compliance documents", "Incident reporting procedure", "Incident reporting, escalation, and evidence process.", "Pending", ""],
+      ["Compliance documents", "Business continuity plan", "Emergency, absence, and service disruption plan.", "Pending", ""],
+      ["Staff readiness", "Staff induction procedure", "New staff onboarding and sign-off process.", "Pending", ""],
+      ["Staff readiness", "Staff qualifications / checks", "Police checks, right-to-work checks, and training records.", "Pending", ""],
+      ["Staff readiness", "Referees list", "References for vendor applications.", "Pending", ""],
+      ["Staff readiness", "Organization chart", "Director, supervisor, cleaners, and admin roles.", "Pending", ""],
+      ["Quality control", "Digital cleaning checklist", "Daily or site-based task checklist.", "Pending", ""],
+      ["Quality control", "Photo evidence", "Before/after photos and issue evidence.", "Pending", ""],
+      ["Quality control", "Task completion tracking", "Clear record showing whether each job has been completed.", "Pending", ""],
+      ["Quality control", "Supervisor reviews", "Regular quality checks and supervisor sign-off.", "Pending", ""],
+      ["Quality control", "QR / site attendance", "Site attendance proof for staff.", "Pending", ""],
+      ["Quality control", "Complaint tracking", "Complaint record, response, and close-out proof.", "Pending", ""],
+      ["Quality control", "Monthly quality report", "Monthly summary for improvement and vendor evidence.", "Pending", ""],
+      ["Vendor panel and web content", "Vendor panel profile pack", "Policies, insurance, company profile, referees, and quality evidence.", "Pending", ""],
+      ["Vendor panel and web content", "Google Drive folder structure", "Organize all documents section by section.", "Pending", ""],
+      ["Vendor panel and web content", "Website content planning", "Plan public website content separately.", "Pending", ""],
+      ["Vendor panel and web content", "Staff progress link share", "Share the latest tracker page link with the team.", "Pending", ""]
+    ];
+
+    const STORAGE_KEY = "freshera-form-checklist-v2";
+    const params = new URLSearchParams(location.search);
+    const sheetId = params.get("sheet") || "1Jq62ilXsDWa-CLU5CSFjwsVqU7HkBbqOL0P94k6X3XA";
+    const sheetTab = params.get("tab") || "Sheet1";
+    const usingSheet = Boolean(sheetId);
+
+    const sectionsEl = document.getElementById("sections");
+    const progressText = document.getElementById("progressText");
+    const progressCount = document.getElementById("progressCount");
+    const progressBar = document.getElementById("progressBar");
+    const notice = document.getElementById("notice");
+    const toast = document.getElementById("toast");
+    const resetButton = document.getElementById("resetAll");
+    let filter = "all";
+    let rows = rowsToItems(FALLBACK_ROWS);
+    let localState = readLocalState();
+
+    function normalize(value) {
+      return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+    }
+
+    function isComplete(value) {
+      const clean = normalize(value);
+      return ["complete", "completed", "done", "yes", "true", "tick", "checked", "1"].includes(clean);
+    }
+
+    function readLocalState() {
+      const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+      const fromLink = hash.get("done");
+      if (fromLink !== null) {
+        return Object.fromEntries(fromLink.split(",").filter(Boolean).map(id => [id, true]));
+      }
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      } catch {
+        return {};
+      }
+    }
+
+    function saveLocalState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(localState));
+    }
+
+    function makeId(section, task, index) {
+      const base = normalize(section + "-" + task).slice(0, 80);
+      return base || "task-" + index;
+    }
+
+    function rowsToItems(rawRows) {
+      return rawRows
+        .map((row, index) => {
+          const section = String(row[0] || "General").trim();
+          const task = String(row[1] || "").trim();
+          if (!task) return null;
+          const note = String(row[2] || "").trim();
+          const status = String(row[3] || "").trim();
+          const link = String(row[4] || "").trim();
+          const linkLabel = String(row[5] || "View document").trim() || "View document";
+          return {
+            id: makeId(section, task, index),
+            section,
+            task,
+            note,
+            complete: isComplete(status),
+            status: isComplete(status) ? "Complete" : "Pending",
+            link,
+            linkLabel
+          };
+        })
+        .filter(Boolean);
+    }
+
+    function groupRows(items) {
+      const groups = [];
+      const byName = new Map();
+      items.forEach(item => {
+        if (!byName.has(item.section)) {
+          const group = { name: item.section, tasks: [] };
+          byName.set(item.section, group);
+          groups.push(group);
+        }
+        byName.get(item.section).tasks.push(item);
+      });
+      return groups;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function safeUrl(value) {
+      try {
+        const url = new URL(value);
+        if (url.protocol === "https:" || url.protocol === "http:") return url.toString();
+      } catch {}
+      return "";
+    }
+
+    function itemDone(item) {
+      return usingSheet ? item.complete : Boolean(localState[item.id]);
+    }
+
+    function itemStatus(item) {
+      return itemDone(item) ? "Complete" : "Pending";
+    }
+
+    function render() {
+      sectionsEl.innerHTML = "";
+      const completeCount = rows.filter(itemDone).length;
+      const percent = rows.length ? Math.round((completeCount / rows.length) * 100) : 0;
+      progressText.textContent = percent + "%";
+      progressCount.textContent = completeCount + " of " + rows.length + " complete";
+      progressBar.style.width = percent + "%";
+      resetButton.style.display = usingSheet ? "none" : "";
+
+      groupRows(rows).forEach(group => {
+        const total = group.tasks.length;
+        const done = group.tasks.filter(itemDone).length;
+        const visibleTasks = group.tasks.filter(item => {
+          if (filter === "complete") return itemDone(item);
+          if (filter === "pending") return !itemDone(item);
+          return true;
+        });
+
+        const sectionEl = document.createElement("section");
+        sectionEl.className = "section" + (done === total ? " done" : "");
+        if (visibleTasks.length === 0) sectionEl.classList.add("hidden");
+        sectionEl.innerHTML = `
+          <div class="section-head">
+            <h2>${escapeHtml(group.name)}</h2>
+            <span class="section-count">${done}/${total} complete</span>
+          </div>
+        `;
+
+        visibleTasks.forEach(item => {
+          const doneNow = itemDone(item);
+          const docUrl = safeUrl(item.link);
+          const row = document.createElement("label");
+          row.className = "question" + (doneNow ? " complete" : "");
+          row.innerHTML = `
+            <span class="box ${usingSheet ? "readonly" : ""}">
+              <input type="checkbox" ${doneNow ? "checked" : ""} ${usingSheet ? "disabled" : ""} aria-label="${escapeHtml(item.task)}">
+              <span class="tick">&#10003;</span>
+            </span>
+            <span>
+              <p class="q-title">${escapeHtml(item.task)}</p>
+              ${item.note ? `<p class="q-note">${escapeHtml(item.note)}</p>` : ""}
+              ${docUrl ? `<a class="doc-link" href="${docUrl}" target="_blank" rel="noopener">${escapeHtml(item.linkLabel)}</a>` : doneNow ? `<span class="doc-missing">Document link pending</span>` : ""}
+            </span>
+            <span class="status">${itemStatus(item)}</span>
+          `;
+
+          if (!usingSheet) {
+            row.querySelector("input").addEventListener("change", event => {
+              localState[item.id] = event.target.checked;
+              if (!localState[item.id]) delete localState[item.id];
+              saveLocalState();
+              render();
+            });
+          }
+
+          sectionEl.appendChild(row);
+        });
+
+        sectionsEl.appendChild(sectionEl);
+      });
+    }
+
+    function showNotice(message) {
+      notice.textContent = message;
+      notice.classList.toggle("show", Boolean(message));
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1600);
+    }
+
+    function loadGoogleSheet() {
+      if (!usingSheet) {
+        rows = rowsToItems(FALLBACK_ROWS);
+        showNotice("");
+        render();
+        return;
+      }
+
+      showNotice("Loading latest data from Google Sheet...");
+      const callback = "__fresheraSheet_" + Date.now();
+      const script = document.createElement("script");
+      const timeout = setTimeout(() => {
+        cleanup();
+        showNotice("Could not load the Google Sheet. Check the sharing or publishing settings, then refresh.");
+        rows = rowsToItems(FALLBACK_ROWS);
+        render();
+      }, 12000);
+
+      function cleanup() {
+        clearTimeout(timeout);
+        delete window[callback];
+        script.remove();
+      }
+
+      window[callback] = response => {
+        try {
+          cleanup();
+          if (response.status === "error") {
+            throw new Error(response.errors?.map(error => error.detailed_message || error.message).join(" ") || "Google Sheet returned an error.");
+          }
+          const table = response.table;
+          if (!table || !Array.isArray(table.rows)) {
+            throw new Error("Google Sheet did not return table data.");
+          }
+          const cellText = cell => cell ? (cell.f || cell.v || "") : "";
+          let headers = table.cols.map(col => normalize(col.label || col.id));
+          let dataRows = table.rows;
+          const indexOf = names => {
+            const cleanNames = names.map(normalize);
+            return headers.findIndex(header => cleanNames.includes(header));
+          };
+          let idx = {
+            section: indexOf(["section", "area", "category"]),
+            task: indexOf(["task", "item", "todo", "title", "work"]),
+            note: indexOf(["note", "description", "details"]),
+            status: indexOf(["status", "complete", "done", "completed"]),
+            link: indexOf(["document link", "doc link", "drive link", "evidence link", "link"]),
+            label: indexOf(["link label", "document label", "doc label"])
+          };
+
+          if (idx.task < 0 && table.rows.length) {
+            headers = (table.rows[0].c || []).map(cell => normalize(cellText(cell)));
+            idx = {
+              section: indexOf(["section", "area", "category"]),
+              task: indexOf(["task", "item", "todo", "title", "work"]),
+              note: indexOf(["note", "description", "details"]),
+              status: indexOf(["status", "complete", "done", "completed"]),
+              link: indexOf(["document link", "doc link", "drive link", "evidence link", "link"]),
+              label: indexOf(["link label", "document label", "doc label"])
+            };
+            dataRows = table.rows.slice(1);
+          }
+
+          if (idx.section < 0 || idx.task < 0 || idx.status < 0) {
+            throw new Error("Required columns were not found.");
+          }
+
+          const rawRows = dataRows.map(row => {
+            const cells = row.c || [];
+            const value = cellIndex => {
+              if (cellIndex < 0) return "";
+              return cellText(cells[cellIndex]);
+            };
+            return [
+              value(idx.section),
+              value(idx.task),
+              value(idx.note),
+              value(idx.status),
+              value(idx.link),
+              value(idx.label)
+            ];
+          });
+
+          rows = rowsToItems(rawRows);
+          showNotice(rows.length ? "Live from Google Sheet: " + rows.length + " items loaded." : "No task rows were found in the Google Sheet.");
+          render();
+        } catch (error) {
+          cleanup();
+          showNotice("Google Sheet format mismatch. Use these columns: Section, Task, Note, Status, Document Link.");
+          rows = rowsToItems(FALLBACK_ROWS);
+          render();
+        }
+      };
+
+      const url = new URL("https://docs.google.com/spreadsheets/d/" + encodeURIComponent(sheetId) + "/gviz/tq");
+      url.searchParams.set("sheet", sheetTab);
+      url.searchParams.set("tqx", "responseHandler:" + callback);
+      script.src = url.toString();
+      script.onerror = () => {
+        cleanup();
+        showNotice("Google Sheet access is blocked. Make sure the Sheet is shared as Anyone with the link can view, then refresh.");
+        rows = rowsToItems(FALLBACK_ROWS);
+        render();
+      };
+      document.head.appendChild(script);
+    }
+
+    document.querySelectorAll("[data-filter]").forEach(button => {
+      button.addEventListener("click", () => {
+        filter = button.dataset.filter;
+        document.querySelectorAll("[data-filter]").forEach(btn => btn.classList.toggle("active", btn === button));
+        render();
+      });
+    });
+
+    document.getElementById("resetAll").addEventListener("click", () => {
+      localState = {};
+      saveLocalState();
+      history.replaceState(null, "", location.pathname);
+      render();
+      showToast("Reset done");
+    });
+
+    document.getElementById("refreshData").addEventListener("click", () => {
+      loadGoogleSheet();
+    });
+
+    document.getElementById("copyLink").addEventListener("click", async () => {
+      const url = new URL(location.href);
+      if (!usingSheet) {
+        const done = Object.keys(localState).filter(id => localState[id]).sort();
+        url.hash = done.length ? "done=" + done.join(",") : "";
+      }
+      try {
+        await navigator.clipboard.writeText(url.toString());
+        showToast("Status link copied");
+      } catch {
+        prompt("Copy this link", url.toString());
+      }
+    });
+
+    loadGoogleSheet();
+  </script>
+</body>
+</html>
