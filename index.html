@@ -343,8 +343,7 @@
       line-height: 1.35;
     }
 
-    .doc-link,
-    .doc-missing {
+    .doc-button {
       display: inline-flex;
       align-items: center;
       width: fit-content;
@@ -355,14 +354,16 @@
       font-weight: 700;
     }
 
-    .doc-link {
+    .doc-button.active {
       background: #e8f0fe;
       color: var(--blue);
     }
 
-    .doc-missing {
-      background: var(--amber-soft);
-      color: var(--amber);
+    .doc-button.disabled {
+      background: #eef1ef;
+      color: #8b948f;
+      cursor: not-allowed;
+      text-decoration: none;
     }
 
     .status {
@@ -461,7 +462,7 @@
       <div class="title-body">
         <p class="tag">Freshera Cleaners internal tracker</p>
         <h1>Launch progress checklist</h1>
-       
+        <p class="description">Share this page with staff to show what is complete and what is still pending. Green tick means complete, and every item is grouped by section.</p>
       </div>
     </div>
 
@@ -479,7 +480,6 @@
       <button class="button active" data-filter="all" type="button">All</button>
       <button class="button" data-filter="pending" type="button">Pending</button>
       <button class="button" data-filter="complete" type="button">Complete</button>
-      <button class="button primary" id="copyLink" type="button">Copy status link</button>
       <button class="button" id="refreshData" type="button">Refresh</button>
       <button class="button danger" id="resetAll" type="button">Reset</button>
     </div>
@@ -714,7 +714,7 @@
               <p class="q-title">${escapeHtml(item.task)}</p>
               ${item.note ? `<p class="q-note">${escapeHtml(item.note)}</p>` : ""}
               ${renderExtraDetails(item.extras)}
-              ${docUrl ? `<a class="doc-link" href="${docUrl}" target="_blank" rel="noopener">${escapeHtml(item.linkLabel)}</a>` : doneNow ? `<span class="doc-missing">Document link pending</span>` : ""}
+              ${docUrl ? `<a class="doc-button active" href="${docUrl}" target="_blank" rel="noopener">${escapeHtml(item.linkLabel)}</a>` : `<span class="doc-button disabled" aria-disabled="true">${escapeHtml(item.linkLabel)}</span>`}
             </span>
             <span class="status ${itemStatusClass(item)}">${itemStatus(item)}</span>
           `;
@@ -882,20 +882,6 @@
 
     document.getElementById("refreshData").addEventListener("click", () => {
       loadGoogleSheet();
-    });
-
-    document.getElementById("copyLink").addEventListener("click", async () => {
-      const url = new URL(location.href);
-      if (!usingSheet) {
-        const done = Object.keys(localState).filter(id => localState[id]).sort();
-        url.hash = done.length ? "done=" + done.join(",") : "";
-      }
-      try {
-        await navigator.clipboard.writeText(url.toString());
-        showToast("Status link copied");
-      } catch {
-        prompt("Copy this link", url.toString());
-      }
     });
 
     loadGoogleSheet();
