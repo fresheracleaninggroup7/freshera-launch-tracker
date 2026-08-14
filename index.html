@@ -175,6 +175,13 @@
       color: var(--danger);
     }
 
+    .button.small {
+      min-height: 34px;
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .select-control {
       display: inline-flex;
       min-height: 40px;
@@ -196,6 +203,28 @@
       color: var(--ink);
       font-weight: 700;
       outline: 0;
+    }
+
+    .admin-panel {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: -4px 0 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8faf8;
+    }
+
+    .admin-panel.show {
+      display: flex;
+    }
+
+    .admin-state {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
     }
 
     .notice {
@@ -458,6 +487,19 @@
       text-decoration: none;
     }
 
+    .edit-button {
+      margin-left: 6px;
+      border: 0;
+      background: #eef4ef;
+      color: var(--green-dark);
+      cursor: pointer;
+    }
+
+    .edit-button:hover {
+      background: var(--green-soft);
+      text-decoration: none;
+    }
+
     .status {
       min-width: 82px;
       padding: 6px 9px;
@@ -514,6 +556,94 @@
       opacity: 1;
     }
 
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(32, 33, 36, 0.48);
+    }
+
+    .modal.hidden {
+      display: none;
+    }
+
+    .modal-box {
+      width: min(720px, 100%);
+      max-height: min(88vh, 820px);
+      overflow: auto;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 18px 38px rgba(32, 33, 36, 0.22);
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .modal-head h3 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .modal-body {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding: 18px 20px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.wide {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      min-height: 40px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    .field textarea {
+      min-height: 96px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 14px 20px 18px;
+      border-top: 1px solid var(--line);
+    }
+
     @media (max-width: 680px) {
       .wrap {
         width: min(100% - 18px, 860px);
@@ -544,6 +674,10 @@
         grid-column: 2;
         width: fit-content;
       }
+
+      .modal-body {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -554,7 +688,8 @@
       <div class="title-body">
         <p class="tag">Freshera Cleaners internal tracker</p>
         <h1>Launch progress checklist</h1>
-        
+        <p class="description">Share this page with staff to show what is complete and what is still pending. Green tick means complete, and every item is grouped by section.</p>
+      </div>
     </div>
 
     <div class="panel" aria-live="polite">
@@ -584,7 +719,15 @@
         </select>
       </label>
       <button class="button" id="refreshData" type="button">Refresh</button>
+      <button class="button" id="adminToggle" type="button">Admin edit</button>
       <button class="button danger" id="resetAll" type="button">Reset</button>
+    </div>
+
+    <div class="admin-panel" id="adminPanel" aria-label="Admin editing controls">
+      <button class="button primary small" id="addTask" type="button">Add task</button>
+      <button class="button small" id="addSection" type="button">Add section</button>
+      <button class="button small" id="addColumn" type="button">Add column</button>
+      <span class="admin-state" id="adminState">Edit mode saves to Google Sheet.</span>
     </div>
 
     <div class="notice" id="notice"></div>
@@ -592,6 +735,22 @@
   </main>
 
   <div class="toast" id="toast">Copied</div>
+
+  <div class="modal hidden" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <div class="modal-box">
+      <form id="editForm">
+        <div class="modal-head">
+          <h3 id="editTitle">Edit task</h3>
+          <button class="button small" id="closeEdit" type="button">Close</button>
+        </div>
+        <div class="modal-body" id="editFields"></div>
+        <div class="modal-actions">
+          <button class="button" id="cancelEdit" type="button">Cancel</button>
+          <button class="button primary" id="saveEdit" type="submit">Save to Sheet</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
     const FALLBACK_ROWS = [
@@ -626,9 +785,12 @@
     ];
 
     const STORAGE_KEY = "freshera-form-checklist-v2";
+    const ADMIN_KEY_STORAGE = "freshera-admin-key-v1";
+    const DEFAULT_HEADERS = ["Section", "Task", "Note", "Status", "Document Link", "Link Label", "Assigned To", "Notes", "Priority"];
     const params = new URLSearchParams(location.search);
     const sheetId = params.get("sheet") || "1Jq62ilXsDWa-CLU5CSFjwsVqU7HkBbqOL0P94k6X3XA";
     const sheetTab = params.get("tab") || "Sheet1";
+    const sheetApiUrl = params.get("api") || "https://script.google.com/macros/s/AKfycbxs5sVT_4y6KzSt4kjQ24gbzsb6Ohlcv57nhHQPOmZAmaOWXwL2w8Ztphw7wfUMWWFs/exec";
     const usingSheet = Boolean(sheetId);
 
     const sectionsEl = document.getElementById("sections");
@@ -640,11 +802,22 @@
     const resetButton = document.getElementById("resetAll");
     const priorityFilterEl = document.getElementById("priorityFilter");
     const assignedFilterEl = document.getElementById("assignedFilter");
+    const adminToggle = document.getElementById("adminToggle");
+    const adminPanel = document.getElementById("adminPanel");
+    const adminState = document.getElementById("adminState");
+    const editModal = document.getElementById("editModal");
+    const editForm = document.getElementById("editForm");
+    const editTitle = document.getElementById("editTitle");
+    const editFields = document.getElementById("editFields");
     let filter = "all";
     let priorityFilter = "";
     let assignedFilter = "";
     let rows = rowsToItems(FALLBACK_ROWS);
     let localState = readLocalState();
+    let currentHeaders = DEFAULT_HEADERS.slice();
+    let adminKey = sessionStorage.getItem(ADMIN_KEY_STORAGE) || "";
+    let adminMode = Boolean(adminKey);
+    let editingItem = null;
 
     function normalize(value) {
       return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -687,7 +860,8 @@
             status: row[3],
             link: row[4],
             linkLabel: row[5],
-            extras: []
+            extras: [],
+            values: DEFAULT_HEADERS.map((_header, columnIndex) => row[columnIndex] || "")
           } : row;
           const section = String(source.section || "General").trim();
           const task = String(source.task || "").trim();
@@ -712,7 +886,9 @@
             status: isComplete(status) ? "Complete" : statusLabel,
             link,
             linkLabel,
-            extras
+            extras,
+            sheetRow: Number(source.sheetRow || 0),
+            values: Array.isArray(source.values) ? source.values : []
           };
         })
         .filter(Boolean);
@@ -945,9 +1121,177 @@
       return normalize(itemStatus(item)) || "pending";
     }
 
+    function apiReady() {
+      return /^https:\/\/script\.google\.com\//.test(sheetApiUrl);
+    }
+
+    function setAdminMode(enabled) {
+      adminMode = enabled;
+      adminPanel.classList.toggle("show", adminMode);
+      adminToggle.textContent = adminMode ? "Exit edit" : "Admin edit";
+      adminState.textContent = apiReady() ? "Edit mode saves to Google Sheet." : "Edit bridge is not connected yet.";
+      render();
+    }
+
+    function requireAdminKey() {
+      if (!apiReady()) {
+        showToast("Edit bridge not connected yet");
+        showNotice("Admin editing needs a Google Apps Script web app URL before it can save to the Sheet.");
+        return false;
+      }
+      if (adminKey) return true;
+      const key = prompt("Enter admin key");
+      if (!key) return false;
+      adminKey = key.trim();
+      sessionStorage.setItem(ADMIN_KEY_STORAGE, adminKey);
+      return true;
+    }
+
+    async function saveToSheet(payload) {
+      if (!requireAdminKey()) throw new Error("Admin key is required.");
+      await fetch(sheetApiUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ ...payload, key: adminKey })
+      });
+      await new Promise(resolve => setTimeout(resolve, 1800));
+      return { ok: true };
+    }
+
+    function headersForEditing() {
+      const headers = currentHeaders.length ? currentHeaders.slice() : DEFAULT_HEADERS.slice();
+      DEFAULT_HEADERS.forEach(header => {
+        if (!headers.some(existing => normalize(existing) === normalize(header))) headers.push(header);
+      });
+      return headers;
+    }
+
+    function valueForHeader(item, header) {
+      const headers = headersForEditing();
+      const index = headers.findIndex(existing => normalize(existing) === normalize(header));
+      if (item && Array.isArray(item.values) && index >= 0) return item.values[index] || "";
+      if (!item) {
+        if (normalize(header) === "status") return "Pending";
+        if (normalize(header) === "linklabel") return "View document";
+      }
+      return "";
+    }
+
+    function fieldOptions(header) {
+      const clean = normalize(header);
+      if (clean === "status") return ["Pending", "In Progress", "Waiting for Document", "Blocked", "Complete"];
+      if (clean === "priority") return ["", "High", "Medium", "Low"];
+      return null;
+    }
+
+    function isWideField(header) {
+      return ["note", "notes", "description", "details", "documentlink", "link"].includes(normalize(header));
+    }
+
+    function renderEditField(header, value) {
+      const fieldId = "field-" + normalize(header);
+      const options = fieldOptions(header);
+      if (options) {
+        const allOptions = value && !options.includes(value) ? [value, ...options] : options;
+        return `
+          <div class="field">
+            <label for="${fieldId}">${escapeHtml(header)}</label>
+            <select id="${fieldId}" data-header="${escapeHtml(header)}">
+              ${allOptions.map(option => `<option value="${escapeHtml(option)}" ${option === value ? "selected" : ""}>${escapeHtml(option || "No priority")}</option>`).join("")}
+            </select>
+          </div>
+        `;
+      }
+      const tag = isWideField(header) ? "textarea" : "input";
+      const wide = isWideField(header) ? " wide" : "";
+      if (tag === "textarea") {
+        return `
+          <div class="field${wide}">
+            <label for="${fieldId}">${escapeHtml(header)}</label>
+            <textarea id="${fieldId}" data-header="${escapeHtml(header)}">${escapeHtml(value)}</textarea>
+          </div>
+        `;
+      }
+      return `
+        <div class="field${wide}">
+          <label for="${fieldId}">${escapeHtml(header)}</label>
+          <input id="${fieldId}" data-header="${escapeHtml(header)}" value="${escapeHtml(value)}">
+        </div>
+      `;
+    }
+
+    function openEditor(item, preset = {}) {
+      if (!requireAdminKey()) return;
+      editingItem = item || null;
+      const headers = headersForEditing();
+      editTitle.textContent = item ? "Edit task" : "Add task";
+      editFields.innerHTML = headers.map(header => {
+        const presetKey = Object.keys(preset).find(key => normalize(key) === normalize(header));
+        const value = presetKey ? preset[presetKey] : valueForHeader(item, header);
+        return renderEditField(header, String(value || ""));
+      }).join("");
+      editModal.classList.remove("hidden");
+    }
+
+    function closeEditor() {
+      editModal.classList.add("hidden");
+      editingItem = null;
+      editFields.innerHTML = "";
+    }
+
+    function collectEditValues() {
+      const values = {};
+      editFields.querySelectorAll("[data-header]").forEach(field => {
+        values[field.dataset.header] = field.value;
+      });
+      return values;
+    }
+
+    async function submitEditor(event) {
+      event.preventDefault();
+      const values = collectEditValues();
+      const action = editingItem ? "updateRow" : "addRow";
+      const payload = editingItem
+        ? { action, rowNumber: editingItem.sheetRow, values }
+        : { action, values };
+      if (editingItem && !editingItem.sheetRow) {
+        showToast("Row number missing");
+        return;
+      }
+      document.getElementById("saveEdit").disabled = true;
+      try {
+        await saveToSheet(payload);
+        closeEditor();
+        showToast("Saved to Sheet");
+        loadGoogleSheet();
+      } catch (error) {
+        showToast("Save failed");
+        showNotice(error.message);
+      } finally {
+        document.getElementById("saveEdit").disabled = false;
+      }
+    }
+
+    async function addColumn() {
+      if (!requireAdminKey()) return;
+      const name = prompt("New column name");
+      if (!name || !name.trim()) return;
+      try {
+        await saveToSheet({ action: "addColumn", header: name.trim() });
+        showToast("Column added");
+        loadGoogleSheet();
+      } catch (error) {
+        showToast("Save failed");
+        showNotice(error.message);
+      }
+    }
+
     function render() {
       sectionsEl.innerHTML = "";
       updateFilterOptions();
+      adminPanel.classList.toggle("show", adminMode);
+      adminToggle.textContent = adminMode ? "Exit edit" : "Admin edit";
       const completeCount = rows.filter(itemDone).length;
       const percent = rows.length ? Math.round((completeCount / rows.length) * 100) : 0;
       progressText.textContent = percent + "%";
@@ -979,7 +1323,7 @@
         visibleTasks.forEach(item => {
           const doneNow = itemDone(item);
           const docUrl = safeUrl(item.link);
-          const row = document.createElement("label");
+          const row = document.createElement("div");
           row.className = ["question", doneNow ? "complete" : "", itemPriorityClass(item)].filter(Boolean).join(" ");
           row.innerHTML = `
             <span class="box ${usingSheet ? "readonly" : ""}">
@@ -991,6 +1335,7 @@
               ${item.note ? `<p class="q-note">${escapeHtml(item.note)}</p>` : ""}
               ${renderExtraDetails(item.extras)}
               ${docUrl ? `<a class="doc-button active" href="${docUrl}" target="_blank" rel="noopener">${escapeHtml(item.linkLabel)}</a>` : `<span class="doc-button disabled" aria-disabled="true">${escapeHtml(item.linkLabel)}</span>`}
+              ${adminMode ? `<button class="doc-button edit-button" data-edit-id="${escapeHtml(item.id)}" type="button">Edit</button>` : ""}
             </span>
             <span class="status ${itemStatusClass(item)}">${itemStatus(item)}</span>
           `;
@@ -1002,6 +1347,11 @@
               saveLocalState();
               render();
             });
+          }
+
+          const editButton = row.querySelector("[data-edit-id]");
+          if (editButton) {
+            editButton.addEventListener("click", () => openEditor(item));
           }
 
           sectionEl.appendChild(row);
@@ -1024,6 +1374,7 @@
 
     function loadGoogleSheet() {
       if (!usingSheet) {
+        currentHeaders = DEFAULT_HEADERS.slice();
         rows = rowsToItems(FALLBACK_ROWS);
         showNotice("");
         render();
@@ -1036,6 +1387,7 @@
       const timeout = setTimeout(() => {
         cleanup();
         showNotice("Could not load the Google Sheet. Check the sharing or publishing settings, then refresh.");
+        currentHeaders = DEFAULT_HEADERS.slice();
         rows = rowsToItems(FALLBACK_ROWS);
         render();
       }, 12000);
@@ -1091,13 +1443,15 @@
             throw new Error("Required columns were not found.");
           }
 
+          currentHeaders = headerLabels.slice();
           const coreColumns = new Set(Object.values(idx).filter(index => index >= 0));
-          const rawRows = dataRows.map(row => {
+          const rawRows = dataRows.map((row, rowIndex) => {
             const cells = row.c || [];
             const value = cellIndex => {
               if (cellIndex < 0) return "";
               return cellText(cells[cellIndex]);
             };
+            const values = headerLabels.map((_label, columnIndex) => String(cellText(cells[columnIndex]) || ""));
             const extras = headerLabels
               .map((label, columnIndex) => {
                 if (coreColumns.has(columnIndex)) return null;
@@ -1112,6 +1466,8 @@
               status: value(idx.status),
               link: value(idx.link),
               linkLabel: value(idx.label),
+              sheetRow: rowIndex + 2,
+              values,
               extras
             };
           });
@@ -1122,6 +1478,7 @@
         } catch (error) {
           cleanup();
           showNotice("Google Sheet format mismatch. Keep these required columns: Section, Task, Status. Extra columns are shown automatically.");
+          currentHeaders = DEFAULT_HEADERS.slice();
           rows = rowsToItems(FALLBACK_ROWS);
           render();
         }
@@ -1134,6 +1491,7 @@
       script.onerror = () => {
         cleanup();
         showNotice("Google Sheet access is blocked. Make sure the Sheet is shared as Anyone with the link can view, then refresh.");
+        currentHeaders = DEFAULT_HEADERS.slice();
         rows = rowsToItems(FALLBACK_ROWS);
         render();
       };
@@ -1168,6 +1526,34 @@
 
     document.getElementById("refreshData").addEventListener("click", () => {
       loadGoogleSheet();
+    });
+
+    adminToggle.addEventListener("click", () => {
+      if (adminMode) {
+        adminKey = "";
+        sessionStorage.removeItem(ADMIN_KEY_STORAGE);
+        setAdminMode(false);
+        showToast("Edit mode off");
+        return;
+      }
+      if (!requireAdminKey()) return;
+      setAdminMode(true);
+      showToast("Edit mode on");
+    });
+
+    document.getElementById("addTask").addEventListener("click", () => openEditor(null));
+    document.getElementById("addSection").addEventListener("click", () => {
+      if (!requireAdminKey()) return;
+      const section = prompt("New section name");
+      if (!section || !section.trim()) return;
+      openEditor(null, { Section: section.trim(), Status: "Pending", "Link Label": "View document" });
+    });
+    document.getElementById("addColumn").addEventListener("click", addColumn);
+    editForm.addEventListener("submit", submitEditor);
+    document.getElementById("closeEdit").addEventListener("click", closeEditor);
+    document.getElementById("cancelEdit").addEventListener("click", closeEditor);
+    editModal.addEventListener("click", event => {
+      if (event.target === editModal) closeEditor();
     });
 
     loadGoogleSheet();
