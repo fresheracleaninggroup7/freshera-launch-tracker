@@ -301,6 +301,48 @@
       line-height: 1.45;
     }
 
+    .q-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .q-detail {
+      min-width: 0;
+      padding: 8px 10px;
+      border: 1px solid var(--soft-line);
+      border-radius: 6px;
+      background: #f8faf8;
+    }
+
+    .question.complete .q-detail {
+      border-color: #cce8d5;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .q-detail-label,
+    .q-detail-value {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    .q-detail-label {
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .q-detail-value {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
     .doc-link,
     .doc-missing {
       display: inline-flex;
@@ -516,13 +558,28 @@
     function rowsToItems(rawRows) {
       return rawRows
         .map((row, index) => {
-          const section = String(row[0] || "General").trim();
-          const task = String(row[1] || "").trim();
+          const source = Array.isArray(row) ? {
+            section: row[0],
+            task: row[1],
+            note: row[2],
+            status: row[3],
+            link: row[4],
+            linkLabel: row[5],
+            extras: []
+          } : row;
+          const section = String(source.section || "General").trim();
+          const task = String(source.task || "").trim();
           if (!task) return null;
-          const note = String(row[2] || "").trim();
-          const status = String(row[3] || "").trim();
-          const link = String(row[4] || "").trim();
-          const linkLabel = String(row[5] || "View document").trim() || "View document";
+          const note = String(source.note || "").trim();
+          const status = String(source.status || "").trim();
+          const link = String(source.link || "").trim();
+          const linkLabel = String(source.linkLabel || "View document").trim() || "View document";
+          const extras = Array.isArray(source.extras) ? source.extras
+            .map(extra => ({
+              label: String(extra.label || "").trim(),
+              value: String(extra.value || "").trim()
+            }))
+            .filter(extra => extra.label && extra.value) : [];
           return {
             id: makeId(section, task, index),
             section,
@@ -531,7 +588,8 @@
             complete: isComplete(status),
             status: isComplete(status) ? "Complete" : "Pending",
             link,
-            linkLabel
+            linkLabel,
+            extras
           };
         })
         .filter(Boolean);
@@ -566,6 +624,23 @@
         if (url.protocol === "https:" || url.protocol === "http:") return url.toString();
       } catch {}
       return "";
+    }
+
+    function renderExtraDetails(details) {
+      if (!details || !details.length) return "";
+      const detailHtml = details.map(detail => {
+        const url = safeUrl(detail.value);
+        const valueHtml = url
+          ? `<a href="${url}" target="_blank" rel="noopener">${escapeHtml(detail.value)}</a>`
+          : escapeHtml(detail.value);
+        return `
+          <span class="q-detail">
+            <span class="q-detail-label">${escapeHtml(detail.label)}</span>
+            <span class="q-detail-value">${valueHtml}</span>
+          </span>
+        `;
+      }).join("");
+      return `<span class="q-details">${detailHtml}</span>`;
     }
 
     function itemDone(item) {
@@ -617,6 +692,7 @@
             <span>
               <p class="q-title">${escapeHtml(item.task)}</p>
               ${item.note ? `<p class="q-note">${escapeHtml(item.note)}</p>` : ""}
+              ${renderExtraDetails(item.extras)}
               ${docUrl ? `<a class="doc-link" href="${docUrl}" target="_blank" rel="noopener">${escapeHtml(item.linkLabel)}</a>` : doneNow ? `<span class="doc-missing">Document link pending</span>` : ""}
             </span>
             <span class="status">${itemStatus(item)}</span>
@@ -684,7 +760,8 @@
             throw new Error("Google Sheet did not return table data.");
           }
           const cellText = cell => cell ? (cell.f || cell.v || "") : "";
-          let headers = table.cols.map(col => normalize(col.label || col.id));
+          let headerLabels = table.cols.map((col, index) => String(col.label || "").trim() || "Column " + (index + 1));
+          let headers = headerLabels.map(normalize);
           let dataRows = table.rows;
           const indexOf = names => {
             const cleanNames = names.map(normalize);
@@ -700,7 +777,8 @@
           };
 
           if (idx.task < 0 && table.rows.length) {
-            headers = (table.rows[0].c || []).map(cell => normalize(cellText(cell)));
+            headerLabels = (table.rows[0].c || []).map((cell, index) => String(cellText(cell)).trim() || "Column " + (index + 1));
+            headers = headerLabels.map(normalize);
             idx = {
               section: indexOf(["section", "area", "category"]),
               task: indexOf(["task", "item", "todo", "title", "work"]),
@@ -716,20 +794,29 @@
             throw new Error("Required columns were not found.");
           }
 
+          const coreColumns = new Set(Object.values(idx).filter(index => index >= 0));
           const rawRows = dataRows.map(row => {
             const cells = row.c || [];
             const value = cellIndex => {
               if (cellIndex < 0) return "";
               return cellText(cells[cellIndex]);
             };
-            return [
-              value(idx.section),
-              value(idx.task),
-              value(idx.note),
-              value(idx.status),
-              value(idx.link),
-              value(idx.label)
-            ];
+            const extras = headerLabels
+              .map((label, columnIndex) => {
+                if (coreColumns.has(columnIndex)) return null;
+                const text = String(cellText(cells[columnIndex]) || "").trim();
+                return label && text ? { label, value: text } : null;
+              })
+              .filter(Boolean);
+            return {
+              section: value(idx.section),
+              task: value(idx.task),
+              note: value(idx.note),
+              status: value(idx.status),
+              link: value(idx.link),
+              linkLabel: value(idx.label),
+              extras
+            };
           });
 
           rows = rowsToItems(rawRows);
@@ -737,7 +824,7 @@
           render();
         } catch (error) {
           cleanup();
-          showNotice("Google Sheet format mismatch. Use these columns: Section, Task, Note, Status, Document Link.");
+          showNotice("Google Sheet format mismatch. Keep these required columns: Section, Task, Status. Extra columns are shown automatically.");
           rows = rowsToItems(FALLBACK_ROWS);
           render();
         }
