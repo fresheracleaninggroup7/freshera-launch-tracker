@@ -273,8 +273,57 @@
     }
 
     .section-head {
+      display: flex;
+      width: 100%;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
       padding: 18px 22px;
+      border: 0;
       border-bottom: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .section.collapsed .section-head {
+      border-bottom: 0;
+    }
+
+    .section-head:hover {
+      background: #fbfdfb;
+    }
+
+    .section-title-line {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-chevron {
+      width: 9px;
+      height: 9px;
+      flex: 0 0 auto;
+      margin-top: -3px;
+      border-right: 2px solid var(--muted);
+      border-bottom: 2px solid var(--muted);
+      transform: rotate(45deg);
+      transition: transform 160ms ease, margin 160ms ease;
+    }
+
+    .section.collapsed .section-chevron {
+      margin-top: 0;
+      transform: rotate(-45deg);
+    }
+
+    .section-tasks {
+      display: block;
+    }
+
+    .section.collapsed .section-tasks {
+      display: none;
     }
 
     h2 {
@@ -516,16 +565,31 @@
     }
 
     .edit-button {
-      margin-left: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 7px 11px;
       border: 1px solid var(--line);
+      border-radius: 8px;
       background: #fff;
       color: var(--green-dark);
       cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
     }
 
     .edit-button:hover {
+      border-color: var(--green);
       background: var(--green-soft);
+      color: var(--green-dark);
       text-decoration: none;
+    }
+
+    .edit-row {
+      grid-column: 2 / -1;
+      display: flex;
+      padding-top: 2px;
     }
 
     .status {
@@ -712,6 +776,15 @@
         width: fit-content;
       }
 
+      .edit-row {
+        grid-column: 2;
+        padding-top: 0;
+      }
+
+      .section-head {
+        padding: 16px 18px;
+      }
+
       .modal-body {
         grid-template-columns: 1fr;
       }
@@ -767,7 +840,7 @@
       <button class="button primary small" id="addTask" type="button">Add task</button>
       <button class="button small" id="addSection" type="button">Add section</button>
       <button class="button small" id="addColumn" type="button">Add column</button>
-      <span class="admin-state" id="adminState">Edit mode saves to Google Sheet.</span>
+      <span class="admin-state" id="adminState">Admin editing is on.</span>
     </div>
 
     <div class="notice" id="notice"></div>
@@ -786,7 +859,7 @@
         <div class="modal-body" id="editFields"></div>
         <div class="modal-actions">
           <button class="button" id="cancelEdit" type="button">Cancel</button>
-          <button class="button primary" id="saveEdit" type="submit">Save to Sheet</button>
+          <button class="button primary" id="saveEdit" type="submit">Save changes</button>
         </div>
       </form>
     </div>
@@ -826,6 +899,7 @@
 
     const STORAGE_KEY = "freshera-form-checklist-v2";
     const ADMIN_KEY_STORAGE = "freshera-admin-key-v1";
+    const COLLAPSED_SECTIONS_STORAGE = "freshera-collapsed-sections-v1";
     const DEFAULT_HEADERS = ["Section", "Task", "Note", "Status", "Document Link", "Link Label", "Assigned To", "Notes", "Priority"];
     const params = new URLSearchParams(location.search);
     const sheetId = params.get("sheet") || "1Jq62ilXsDWa-CLU5CSFjwsVqU7HkBbqOL0P94k6X3XA";
@@ -858,6 +932,7 @@
     let adminKey = sessionStorage.getItem(ADMIN_KEY_STORAGE) || "";
     let adminMode = Boolean(adminKey);
     let editingItem = null;
+    let collapsedSections = readCollapsedSections();
 
     function normalize(value) {
       return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -883,6 +958,22 @@
 
     function saveLocalState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(localState));
+    }
+
+    function readCollapsedSections() {
+      try {
+        return JSON.parse(localStorage.getItem(COLLAPSED_SECTIONS_STORAGE) || "{}");
+      } catch {
+        return {};
+      }
+    }
+
+    function saveCollapsedSections() {
+      localStorage.setItem(COLLAPSED_SECTIONS_STORAGE, JSON.stringify(collapsedSections));
+    }
+
+    function sectionKey(name) {
+      return normalize(name) || String(name || "");
     }
 
     function makeId(section, task, index) {
@@ -1170,14 +1261,14 @@
       adminPanel.classList.toggle("show", adminMode);
       adminToggle.textContent = adminMode ? "Exit edit" : "Admin edit";
       adminToggle.classList.toggle("active", adminMode);
-      adminState.textContent = apiReady() ? "Edit mode saves to Google Sheet." : "Edit bridge is not connected yet.";
+      adminState.textContent = apiReady() ? "Admin editing is on." : "Editing is not connected yet.";
       render();
     }
 
     function requireAdminKey() {
       if (!apiReady()) {
-        showToast("Edit bridge not connected yet");
-        showNotice("Admin editing needs a Google Apps Script web app URL before it can save to the Sheet.");
+        showToast("Editing is not connected yet");
+        showNotice("Admin editing is not connected yet.");
         return false;
       }
       if (adminKey) return true;
@@ -1304,7 +1395,7 @@
       try {
         await saveToSheet(payload);
         closeEditor();
-        showToast("Saved to Sheet");
+        showToast("Saved");
         loadGoogleSheet();
       } catch (error) {
         showToast("Save failed");
@@ -1353,14 +1444,24 @@
         });
 
         const sectionEl = document.createElement("section");
+        const key = sectionKey(group.name);
+        const collapsed = Boolean(collapsedSections[key]);
         sectionEl.className = "section" + (done === total ? " done" : "");
+        sectionEl.classList.toggle("collapsed", collapsed);
         if (visibleTasks.length === 0) sectionEl.classList.add("hidden");
         sectionEl.innerHTML = `
-          <div class="section-head">
-            <h2>${escapeHtml(group.name)}</h2>
-            <span class="section-count">${done}/${total} complete</span>
-          </div>
+          <button class="section-head" data-section-toggle="${escapeHtml(key)}" type="button" aria-expanded="${String(!collapsed)}">
+            <span>
+              <span class="section-title-line">
+                <span class="section-chevron" aria-hidden="true"></span>
+                <h2>${escapeHtml(group.name)}</h2>
+              </span>
+              <span class="section-count">${done}/${total} complete</span>
+            </span>
+          </button>
         `;
+        const tasksEl = document.createElement("div");
+        tasksEl.className = "section-tasks";
 
         visibleTasks.forEach(item => {
           const doneNow = itemDone(item);
@@ -1377,9 +1478,9 @@
               ${item.note ? `<p class="q-note">${escapeHtml(item.note)}</p>` : ""}
               ${renderExtraDetails(item.extras)}
               ${docUrl ? `<a class="doc-button active" href="${docUrl}" target="_blank" rel="noopener">${escapeHtml(item.linkLabel)}</a>` : `<span class="doc-button disabled" aria-disabled="true">${escapeHtml(item.linkLabel)}</span>`}
-              ${adminMode ? `<button class="doc-button edit-button" data-edit-id="${escapeHtml(item.id)}" type="button">Edit</button>` : ""}
             </span>
             <span class="status ${itemStatusClass(item)}">${itemStatus(item)}</span>
+            ${adminMode ? `<span class="edit-row"><button class="edit-button" data-edit-id="${escapeHtml(item.id)}" type="button">Edit item</button></span>` : ""}
           `;
 
           if (!usingSheet) {
@@ -1396,9 +1497,20 @@
             editButton.addEventListener("click", () => openEditor(item));
           }
 
-          sectionEl.appendChild(row);
+          tasksEl.appendChild(row);
         });
 
+        sectionEl.querySelector("[data-section-toggle]").addEventListener("click", () => {
+          if (collapsedSections[key]) {
+            delete collapsedSections[key];
+          } else {
+            collapsedSections[key] = true;
+          }
+          saveCollapsedSections();
+          render();
+        });
+
+        sectionEl.appendChild(tasksEl);
         sectionsEl.appendChild(sectionEl);
       });
     }
@@ -1423,12 +1535,12 @@
         return;
       }
 
-      showNotice("Loading latest data from Google Sheet...");
+      showNotice("");
       const callback = "__fresheraSheet_" + Date.now();
       const script = document.createElement("script");
       const timeout = setTimeout(() => {
         cleanup();
-        showNotice("Could not load the Google Sheet. Check the sharing or publishing settings, then refresh.");
+        showNotice("Could not load the latest updates. Please refresh again.");
         currentHeaders = DEFAULT_HEADERS.slice();
         rows = rowsToItems(FALLBACK_ROWS);
         render();
@@ -1444,11 +1556,11 @@
         try {
           cleanup();
           if (response.status === "error") {
-            throw new Error(response.errors?.map(error => error.detailed_message || error.message).join(" ") || "Google Sheet returned an error.");
+            throw new Error(response.errors?.map(error => error.detailed_message || error.message).join(" ") || "Could not load data.");
           }
           const table = response.table;
           if (!table || !Array.isArray(table.rows)) {
-            throw new Error("Google Sheet did not return table data.");
+            throw new Error("Could not load table data.");
           }
           const cellText = cell => cell ? (cell.f || cell.v || "") : "";
           let headerLabels = table.cols.map((col, index) => String(col.label || "").trim() || "Column " + (index + 1));
@@ -1515,11 +1627,11 @@
           });
 
           rows = rowsToItems(rawRows);
-          showNotice(rows.length ? "Live from Google Sheet: " + rows.length + " items loaded." : "No task rows were found in the Google Sheet.");
+          showNotice(rows.length ? "" : "No task rows were found.");
           render();
         } catch (error) {
           cleanup();
-          showNotice("Google Sheet format mismatch. Keep these required columns: Section, Task, Status. Extra columns are shown automatically.");
+          showNotice("Data format mismatch. Keep these required columns: Section, Task, Status. Extra columns are shown automatically.");
           currentHeaders = DEFAULT_HEADERS.slice();
           rows = rowsToItems(FALLBACK_ROWS);
           render();
@@ -1532,7 +1644,7 @@
       script.src = url.toString();
       script.onerror = () => {
         cleanup();
-        showNotice("Google Sheet access is blocked. Make sure the Sheet is shared as Anyone with the link can view, then refresh.");
+        showNotice("Could not access the latest updates. Please refresh again.");
         currentHeaders = DEFAULT_HEADERS.slice();
         rows = rowsToItems(FALLBACK_ROWS);
         render();
