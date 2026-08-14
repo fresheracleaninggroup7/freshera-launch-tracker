@@ -79,6 +79,17 @@
       padding: 28px 30px 24px;
     }
 
+    .title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .title-copy {
+      min-width: 0;
+    }
+
     .tag {
       margin: 0 0 10px;
       color: var(--green-dark);
@@ -92,13 +103,6 @@
       font-size: 34px;
       line-height: 1.15;
       letter-spacing: 0;
-    }
-
-    .description {
-      margin: 14px 0 0;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.55;
     }
 
     .panel {
@@ -180,6 +184,29 @@
       padding: 7px 10px;
       font-size: 13px;
       font-weight: 700;
+    }
+
+    .admin-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 8px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--green-dark);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .admin-toggle:hover,
+    .admin-toggle.active {
+      border-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green-dark);
     }
 
     .select-control {
@@ -467,6 +494,7 @@
     .doc-button {
       display: inline-flex;
       align-items: center;
+      gap: 7px;
       width: fit-content;
       margin-top: 9px;
       padding: 7px 10px;
@@ -488,9 +516,9 @@
     }
 
     .edit-button {
-      margin-left: 6px;
-      border: 0;
-      background: #eef4ef;
+      margin-left: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
       color: var(--green-dark);
       cursor: pointer;
     }
@@ -654,6 +682,15 @@
         padding: 22px 20px;
       }
 
+      .title-row {
+        display: grid;
+        gap: 14px;
+      }
+
+      .admin-toggle {
+        width: fit-content;
+      }
+
       h1 {
         font-size: 27px;
       }
@@ -686,9 +723,13 @@
     <div class="form-title">
       <div class="top-line"></div>
       <div class="title-body">
-        <p class="tag">Freshera Cleaners internal tracker</p>
-        <h1>Launch progress checklist</h1>
-        <p class="description">Share this page with staff to show what is complete and what is still pending. Green tick means complete, and every item is grouped by section.</p>
+        <div class="title-row">
+          <div class="title-copy">
+            <p class="tag">Freshera Cleaners internal tracker</p>
+            <h1>Launch progress checklist</h1>
+          </div>
+          <button class="admin-toggle" id="adminToggle" type="button">Admin edit</button>
+        </div>
       </div>
     </div>
 
@@ -719,7 +760,6 @@
         </select>
       </label>
       <button class="button" id="refreshData" type="button">Refresh</button>
-      <button class="button" id="adminToggle" type="button">Admin edit</button>
       <button class="button danger" id="resetAll" type="button">Reset</button>
     </div>
 
@@ -1129,6 +1169,7 @@
       adminMode = enabled;
       adminPanel.classList.toggle("show", adminMode);
       adminToggle.textContent = adminMode ? "Exit edit" : "Admin edit";
+      adminToggle.classList.toggle("active", adminMode);
       adminState.textContent = apiReady() ? "Edit mode saves to Google Sheet." : "Edit bridge is not connected yet.";
       render();
     }
@@ -1292,6 +1333,7 @@
       updateFilterOptions();
       adminPanel.classList.toggle("show", adminMode);
       adminToggle.textContent = adminMode ? "Exit edit" : "Admin edit";
+      adminToggle.classList.toggle("active", adminMode);
       const completeCount = rows.filter(itemDone).length;
       const percent = rows.length ? Math.round((completeCount / rows.length) * 100) : 0;
       progressText.textContent = percent + "%";
