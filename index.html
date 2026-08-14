@@ -377,6 +377,21 @@
       white-space: nowrap;
     }
 
+    .status.inprogress {
+      background: #e8f0fe;
+      color: var(--blue);
+    }
+
+    .status.waitingfordocument {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .status.blocked {
+      background: #fceeee;
+      color: var(--danger);
+    }
+
     .question.complete .status {
       background: var(--green);
       color: #fff;
@@ -574,6 +589,7 @@
           const status = String(source.status || "").trim();
           const link = String(source.link || "").trim();
           const linkLabel = String(source.linkLabel || "View document").trim() || "View document";
+          const statusLabel = status || "Pending";
           const extras = Array.isArray(source.extras) ? source.extras
             .map(extra => ({
               label: String(extra.label || "").trim(),
@@ -586,7 +602,7 @@
             task,
             note,
             complete: isComplete(status),
-            status: isComplete(status) ? "Complete" : "Pending",
+            status: isComplete(status) ? "Complete" : statusLabel,
             link,
             linkLabel,
             extras
@@ -648,7 +664,12 @@
     }
 
     function itemStatus(item) {
+      if (usingSheet) return item.status || "Pending";
       return itemDone(item) ? "Complete" : "Pending";
+    }
+
+    function itemStatusClass(item) {
+      return normalize(itemStatus(item)) || "pending";
     }
 
     function render() {
@@ -695,7 +716,7 @@
               ${renderExtraDetails(item.extras)}
               ${docUrl ? `<a class="doc-link" href="${docUrl}" target="_blank" rel="noopener">${escapeHtml(item.linkLabel)}</a>` : doneNow ? `<span class="doc-missing">Document link pending</span>` : ""}
             </span>
-            <span class="status">${itemStatus(item)}</span>
+            <span class="status ${itemStatusClass(item)}">${itemStatus(item)}</span>
           `;
 
           if (!usingSheet) {
