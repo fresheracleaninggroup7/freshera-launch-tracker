@@ -34,7 +34,8 @@
     }
 
     button,
-    input {
+    input,
+    select {
       font: inherit;
     }
 
@@ -172,6 +173,29 @@
       border-color: var(--danger);
       background: #fceeee;
       color: var(--danger);
+    }
+
+    .select-control {
+      display: inline-flex;
+      min-height: 40px;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 9px 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .select-control select {
+      max-width: min(220px, 52vw);
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font-weight: 700;
+      outline: 0;
     }
 
     .notice {
@@ -345,6 +369,32 @@
 
     .q-detail-value strong {
       font-weight: 800;
+    }
+
+    .q-images {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .q-image-link {
+      display: block;
+      overflow: hidden;
+      border: 1px solid var(--soft-line);
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .q-image-link:hover {
+      border-color: var(--green);
+    }
+
+    .q-image-link img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
     }
 
     .q-detail.priority .q-detail-value {
@@ -522,6 +572,18 @@
       <button class="button active" data-filter="all" type="button">All</button>
       <button class="button" data-filter="pending" type="button">Pending</button>
       <button class="button" data-filter="complete" type="button">Complete</button>
+      <label class="select-control">
+        <span>Priority</span>
+        <select id="priorityFilter" aria-label="Filter by priority">
+          <option value="">All priorities</option>
+        </select>
+      </label>
+      <label class="select-control">
+        <span>Assigned To</span>
+        <select id="assignedFilter" aria-label="Filter by assigned person">
+          <option value="">Everyone</option>
+        </select>
+      </label>
       <button class="button" id="refreshData" type="button">Refresh</button>
       <button class="button danger" id="resetAll" type="button">Reset</button>
     </div>
@@ -577,7 +639,11 @@
     const notice = document.getElementById("notice");
     const toast = document.getElementById("toast");
     const resetButton = document.getElementById("resetAll");
+    const priorityFilterEl = document.getElementById("priorityFilter");
+    const assignedFilterEl = document.getElementById("assignedFilter");
     let filter = "all";
+    let priorityFilter = "";
+    let assignedFilter = "";
     let rows = rowsToItems(FALLBACK_ROWS);
     let localState = readLocalState();
 
@@ -695,6 +761,53 @@
       return "tel:" + digits;
     }
 
+    function extractUrls(value) {
+      const matches = String(value || "").match(/https?:\/\/[^\s<>()]+/g) || [];
+      return matches.map(url => url.replace(/[.,;:!?]+$/, ""));
+    }
+
+    function driveFileId(url) {
+      const direct = url.match(/\/file\/d\/([^/?#]+)/);
+      if (direct) return direct[1];
+      try {
+        const parsed = new URL(url);
+        return parsed.searchParams.get("id") || "";
+      } catch {
+        return "";
+      }
+    }
+
+    function imagePreviewUrl(value) {
+      const url = safeUrl(value);
+      if (!url) return "";
+      try {
+        const parsed = new URL(url);
+        if (/\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(parsed.pathname + parsed.search)) return url;
+        if (parsed.hostname.includes("drive.google.com")) {
+          const id = driveFileId(url);
+          if (id) return "https://drive.google.com/thumbnail?id=" + encodeURIComponent(id) + "&sz=w1000";
+        }
+        if (parsed.hostname.includes("googleusercontent.com")) return url;
+      } catch {}
+      return "";
+    }
+
+    function renderImagePreviews(value, label) {
+      const images = extractUrls(value)
+        .map(url => ({ href: safeUrl(url), src: imagePreviewUrl(url) }))
+        .filter(image => image.href && image.src);
+      if (!images.length) return "";
+      return `
+        <span class="q-images">
+          ${images.map((image, index) => `
+            <a class="q-image-link" href="${image.href}" target="_blank" rel="noopener">
+              <img src="${image.src}" alt="${escapeHtml(label)} screenshot ${index + 1}" loading="lazy">
+            </a>
+          `).join("")}
+        </span>
+      `;
+    }
+
     function formatDetailValue(value) {
       const text = String(value || "");
       const tokens = [];
@@ -744,14 +857,76 @@
       return level ? "priority-" + level : "";
     }
 
+    function detailValue(item, names) {
+      const cleanNames = names.map(normalize);
+      const detail = (item.extras || []).find(extra => cleanNames.includes(normalize(extra.label)));
+      return detail ? String(detail.value || "").trim() : "";
+    }
+
+    function itemPriority(item) {
+      return detailValue(item, ["priority"]);
+    }
+
+    function itemPriorityFilterValue(item) {
+      const value = itemPriority(item);
+      return priorityLevel(value) || normalize(value);
+    }
+
+    function itemAssignedTo(item) {
+      return detailValue(item, ["assigned to", "assigned", "owner"]);
+    }
+
+    function uniqueOptions(getter) {
+      const seen = new Set();
+      return rows.reduce((options, item) => {
+        const label = String(getter(item) || "").trim();
+        const value = normalize(label);
+        if (!label || seen.has(value)) return options;
+        seen.add(value);
+        options.push({ label, value });
+        return options;
+      }, []).sort((a, b) => a.label.localeCompare(b.label));
+    }
+
+    function priorityOptions() {
+      const found = new Map();
+      rows.forEach(item => {
+        const text = itemPriority(item);
+        const key = priorityLevel(text) || normalize(text);
+        if (!key || found.has(key)) return;
+        const label = priorityLevel(text) ? key.charAt(0).toUpperCase() + key.slice(1) : text;
+        found.set(key, { label, value: key });
+      });
+      const ordered = ["high", "medium", "low"].filter(key => found.has(key)).map(key => found.get(key));
+      const custom = [...found.values()].filter(option => !["high", "medium", "low"].includes(option.value));
+      return ordered.concat(custom.sort((a, b) => a.label.localeCompare(b.label)));
+    }
+
+    function setSelectOptions(select, options, allLabel, currentValue) {
+      const available = new Set(options.map(option => option.value));
+      const nextValue = available.has(currentValue) ? currentValue : "";
+      select.innerHTML = `<option value="">${escapeHtml(allLabel)}</option>` + options
+        .map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+        .join("");
+      select.value = nextValue;
+      return nextValue;
+    }
+
+    function updateFilterOptions() {
+      priorityFilter = setSelectOptions(priorityFilterEl, priorityOptions(), "All priorities", priorityFilter);
+      assignedFilter = setSelectOptions(assignedFilterEl, uniqueOptions(itemAssignedTo), "Everyone", assignedFilter);
+    }
+
     function renderExtraDetails(details) {
       if (!details || !details.length) return "";
       const detailHtml = details.map(detail => {
         const valueHtml = formatDetailValue(detail.value);
+        const imagesHtml = renderImagePreviews(detail.value, detail.label);
         return `
           <span class="${detailClass(detail)}">
             <span class="q-detail-label">${escapeHtml(detail.label)}</span>
             <span class="q-detail-value">${valueHtml}</span>
+            ${imagesHtml}
           </span>
         `;
       }).join("");
@@ -773,6 +948,7 @@
 
     function render() {
       sectionsEl.innerHTML = "";
+      updateFilterOptions();
       const completeCount = rows.filter(itemDone).length;
       const percent = rows.length ? Math.round((completeCount / rows.length) * 100) : 0;
       progressText.textContent = percent + "%";
@@ -784,8 +960,10 @@
         const total = group.tasks.length;
         const done = group.tasks.filter(itemDone).length;
         const visibleTasks = group.tasks.filter(item => {
-          if (filter === "complete") return itemDone(item);
-          if (filter === "pending") return !itemDone(item);
+          if (filter === "complete" && !itemDone(item)) return false;
+          if (filter === "pending" && itemDone(item)) return false;
+          if (priorityFilter && itemPriorityFilterValue(item) !== priorityFilter) return false;
+          if (assignedFilter && normalize(itemAssignedTo(item)) !== assignedFilter) return false;
           return true;
         });
 
@@ -969,6 +1147,16 @@
         document.querySelectorAll("[data-filter]").forEach(btn => btn.classList.toggle("active", btn === button));
         render();
       });
+    });
+
+    priorityFilterEl.addEventListener("change", () => {
+      priorityFilter = priorityFilterEl.value;
+      render();
+    });
+
+    assignedFilterEl.addEventListener("change", () => {
+      assignedFilter = assignedFilterEl.value;
+      render();
     });
 
     document.getElementById("resetAll").addEventListener("click", () => {
